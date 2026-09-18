@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6b4f2a">
+<title>Buchstabentor – Bilderduell</title>
+<style>
+:root{--bg:#f7f2e8;--card:#fffdf8;--ink:#2e2a25;--accent:#6b4f2a;--accent2:#c48b3c;--line:#d9c9ad}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(135deg,#f7f2e8,#efe3cc);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);min-height:100vh}
+.wrap{max-width:980px;margin:auto;padding:18px}
+header{text-align:center;padding:8px 0 14px}
+h1{margin:0;font-size:clamp(1.7rem,5vw,2.7rem);letter-spacing:.02em}
+.sub{margin:.35rem 0 0;color:#6c6258}
+.panel{background:rgba(255,253,248,.94);border:1px solid var(--line);border-radius:22px;box-shadow:0 10px 30px rgba(70,50,25,.12);padding:18px}
+#setup{display:grid;gap:14px;max-width:650px;margin:10px auto}
+label{font-weight:700}
+input{width:100%;font-size:1.1rem;padding:13px 14px;border:2px solid var(--line);border-radius:12px;background:white}
+button{border:0;border-radius:14px;padding:13px 18px;font-weight:800;font-size:1rem;cursor:pointer;touch-action:manipulation}
+.primary{background:var(--accent);color:white}.secondary{background:#eadcc3;color:#3d3224}.good{background:#4f7b55;color:white}.next{background:var(--accent2);color:white}
+button:disabled{opacity:.45;cursor:not-allowed}
+#game{display:none}
+.scorebar{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin-bottom:14px}
+.player{padding:12px;border-radius:14px;background:#f0e6d4;text-align:center}
+
+.name{font-weight:800}.score{font-size:1.8rem;font-weight:900}
+.round{text-align:center;font-weight:800;color:#6c6258}
+.turn{text-align:center;font-size:1.05rem;font-weight:800;margin:4px 0 12px;color:#6c6258}
+.stage{display:flex;justify-content:center;align-items:center;min-height:300px;padding:8px}
+.cardframe{width:min(92vw,760px);aspect-ratio:1.7/1;background:white;border:5px solid #4a4a4a;border-radius:18px;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.14)}
+.cardframe img{width:100%;height:100%;object-fit:contain;image-rendering:auto}
+.controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
+.solution{margin-top:15px;text-align:center;min-height:58px}
+.answer{font-size:clamp(1.4rem,5vw,2.2rem);font-weight:900}
+.hint{color:#74695c}
+.small{font-size:.88rem;color:#74695c;text-align:center;margin-top:10px}
+@media(max-width:560px){.scorebar{grid-template-columns:1fr 1fr}.round{grid-column:1/-1;grid-row:1}.stage{min-height:240px}.cardframe{border-width:4px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>🎲 Buchstabentor – Bilderduell</h1>
+<p class="sub">Zu zweit spielen · Bild erraten · Lösung hören</p>
+</header>
+
+<section id="setup" class="panel">
+<h2>Spieler eintragen</h2>
+<div><label for="p1">Spieler/in 1</label><input id="p1" value="Spieler 1" maxlength="20"></div>
+<div><label for="p2">Spieler/in 2</label><input id="p2" value="Spieler 2" maxlength="20"></div>
+<button class="primary" onclick="startGame()">Spiel starten</button>
+<p class="small">Das Spiel wählt bei jeder Runde zufällig eine der 31 Karten aus.</p>
+</section>
+
+<section id="game" class="panel">
+<div class="scorebar">
+<div id="player1" class="player"><div class="name"></div><div class="score">0</div></div>
+<div class="round" id="round">Runde 1</div>
+<div id="player2" class="player"><div class="name"></div><div class="score">0</div></div>
+</div>
+<div class="turn" id="turn">Beide Spieler raten gleichzeitig – danach den Punkt vergeben.</div>
+
+<div class="stage">
+<div class="cardframe"><img id="cardImage" alt="Zufälliges Bild"></div>
+</div>
+
+<div class="controls">
+<button class="secondary" onclick="showSolution()">👀 Lösung anzeigen</button>
+<button class="secondary" onclick="speakSolution()">🔊 Lösung hören</button>
+<button id="p1PointBtn" class="good" onclick="awardPoint(0)">✓ Punkt für <span></span></button>
+<button id="p2PointBtn" class="good" onclick="awardPoint(1)">✓ Punkt für <span></span></button>
+<button id="nextBtn" class="next" onclick="nextRound()">➡️ Nächste Karte</button>
+</div>
+
+<div class="solution" id="solution"><span class="hint">Wer erkennt das Bild zuerst?</span></div>
+<p class="small">Tipp: Die Kinder nennen die Lösung laut. Danach kann die Lösung angezeigt oder vorgelesen werden.</p>
+</section>
+</div>
+
+<script>
+const cards = [{"id": 1, "image": "bilder/card_01.jpg", "solution": ["Eichhörnchen"]}, {"id": 2, "image": "bilder/card_02.jpg", "solution": ["Eule"]}, {"id": 3, "image": "bilder/card_03.jpg", "solution": ["Auge"]}, {"id": 4, "image": "bilder/card_04.jpg", "solution": ["Ameise", "Apfel"]}, {"id": 5, "image": "bilder/card_05.jpg", "solution": ["Esel", "Ente"]}, {"id": 6, "image": "bilder/card_06.jpg", "solution": ["Igel", "Insel"]}, {"id": 7, "image": "bilder/card_07.jpg", "solution": ["Ordner", "Obst"]}, {"id": 8, "image": "bilder/card_08.jpg", "solution": ["Uhr", "Unterhemd"]}, {"id": 9, "image": "bilder/card_09.jpg", "solution": ["Äpfel", "Käse"]}, {"id": 10, "image": "bilder/card_10.jpg", "solution": ["Öl", "Öffner"]}, {"id": 11, "image": "bilder/card_11.jpg", "solution": ["Schüssel", "Tür"]}, {"id": 12, "image": "bilder/card_12.jpg", "solution": ["Baum"]}, {"id": 13, "image": "bilder/card_13.jpg", "solution": ["Paket"]}, {"id": 14, "image": "bilder/card_14.jpg", "solution": ["Dinosaurier"]}, {"id": 15, "image": "bilder/card_15.jpg", "solution": ["Tasse"]}, {"id": 16, "image": "bilder/card_16.jpg", "solution": ["Gabel"]}, {"id": 17, "image": "bilder/card_17.jpg", "solution": ["Kerze"]}, {"id": 18, "image": "bilder/card_18.jpg", "solution": ["Wolke"]}, {"id": 19, "image": "bilder/card_19.jpg", "solution": ["Fisch"]}, {"id": 20, "image": "bilder/card_20.jpg", "solution": ["Sonne"]}, {"id": 21, "image": "bilder/card_21.jpg", "solution": ["Zaun"]}, {"id": 22, "image": "bilder/card_22.jpg", "solution": ["Maus"]}, {"id": 23, "image": "bilder/card_23.jpg", "solution": ["Nase"]}, {"id": 24, "image": "bilder/card_24.jpg", "solution": ["Löwe"]}, {"id": 25, "image": "bilder/card_25.jpg", "solution": ["Raupe"]}, {"id": 26, "image": "bilder/card_26.jpg", "solution": ["Hut"]}, {"id": 27, "image": "bilder/card_27.jpg", "solution": ["Jojo"]}, {"id": 28, "image": "bilder/card_28.jpg", "solution": ["Schaf"]}, {"id": 29, "image": "bilder/card_29.jpg", "solution": ["Dach", "Milch"]}, {"id": 30, "image": "bilder/card_30.jpg", "solution": ["Stern"]}, {"id": 31, "image": "bilder/card_31.jpg", "solution": ["Spinne"]}];
+let players=[], scores=[0,0], round=0, currentCard=null, used=new Set(), pointAwarded=false;
+
+function startGame(){
+  players=[document.getElementById('p1').value.trim()||'Spieler 1',
+           document.getElementById('p2').value.trim()||'Spieler 2'];
+  scores=[0,0]; round=0; used=new Set();
+  document.getElementById('setup').style.display='none';
+  document.getElementById('game').style.display='block';
+  nextRound();
+}
+function chooseCard(){
+  if(used.size>=cards.length) used.clear();
+  let pool=cards.filter(c=>!used.has(c.id));
+  const c=pool[Math.floor(Math.random()*pool.length)];
+  used.add(c.id); return c;
+}
+function nextRound(){
+  currentCard=chooseCard(); pointAwarded=false; round++;
+  document.getElementById('cardImage').src=currentCard.image;
+  document.getElementById('solution').innerHTML='<span class="hint">Beide Spieler raten! Danach Lösung prüfen und Punkt vergeben.</span>';
+  document.getElementById('round').textContent='Runde '+round;
+  updateUI();
+}
+function updateUI(){
+  for(let i=0;i<2;i++){
+    const el=document.getElementById('player'+(i+1));
+    el.querySelector('.name').textContent=players[i];
+    el.querySelector('.score').textContent=scores[i];
+    document.querySelector('#p'+(i+1)+'PointBtn span').textContent=players[i];
+  }
+  document.getElementById('turn').textContent='Beide Spieler raten gleichzeitig – danach den Punkt vergeben.';
+  document.getElementById('p1PointBtn').disabled=pointAwarded;
+  document.getElementById('p2PointBtn').disabled=pointAwarded;
+}
+function showSolution(){
+  document.getElementById('solution').innerHTML='<div class="answer">'+currentCard.solution.join(' · ')+'</div>';
+}
+function speakSolution(){
+  showSolution();
+  if('speechSynthesis' in window){
+    // Bei „Eule“ wird der Anfang „Eu“ bewusst etwas deutlicher gesprochen.
+    const text = currentCard.solution.includes('Eule') ? 'Eu-le' : currentCard.solution.join(' und ');
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang='de-DE'; u.rate=currentCard.solution.includes('Eule') ? .68 : .82; u.pitch=1.05;
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  }
+}
+function awardPoint(playerIndex){
+  if(pointAwarded) return;
+  showSolution();
+  scores[playerIndex]++;
+  pointAwarded=true;
+  updateUI();
+  document.getElementById('turn').textContent='Punkt für '+players[playerIndex]+'! Jetzt die nächste Karte.';
+}
+</script>
